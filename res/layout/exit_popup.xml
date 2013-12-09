@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" 
+    android:background="@color/exit_popup_background">
+
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="1dp"
+        android:orientation="vertical" >
+
+     >
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:orientation="vertical" >
+    <TextView
+        android:id="@+id/tv_remaining"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="EXIT APPLICATION ??? "
+        android:textColor="@color/text_color_blonk"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:typeface="sans"
+		android:gravity="center"
+         
+        />     
+     
+    <Button
+        android:id="@+id/btn_exit_continue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="5dip"
+        android:background="@drawable/button_shape"
+        android:text="NO ! Back to ALARM" />
+
+    <Button
+        android:id="@+id/btn_exit_exit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="5dip"
+        android:background="@drawable/button_shape_red"
+        android:text="YES !! EXIT APP !!" />
+    
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

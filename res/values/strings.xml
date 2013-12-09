@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="hello">Hello World, AlarmActivity!</string>
+    <string name="app_name">Alarm</string>
+    <string name="initialSequence">5 3 4</string>
+    <string name="btn_start">START</string>
+    <string name="btn_stop">Stop</string>
+    <color name="background_color">#FFFFFFFF</color>
+    <color name="text_color">#FF2d89ef</color>
+    <color name="text_color_state">#FF000000</color>
+    <color name="text_color_blonk">#FFDA532C</color>
+    <color name="color_btn_start">#9914BA0E</color>
+    <color name="color_btn_stop">#99CF0808</color>
+    <color name="exit_popup_background">#FFF3F3F3</color>
+    <color name="mute_popup_background">#AAF3F3F3</color>
+
+</resources>
