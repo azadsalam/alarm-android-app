@@ -24,6 +24,14 @@
 
         <requestFocus />
     </EditText>
+
+    <Spinner
+        android:id="@+id/spinner_sequence_selector_id"
+    android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawSelectorOnTop="true"
+         />
+
         <Spinner
         android:id="@+id/sp_tone_selector"
         android:layout_width="match_parent"

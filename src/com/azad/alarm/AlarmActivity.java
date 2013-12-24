@@ -45,31 +45,21 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 	ProgressBar progressBar;
 	EditText etSequence;
 	Button btnStart;
+	
 	Spinner sp_toneSelector;
-	MyCountdownTimer myCountdownTimer;
-	ArrayList<Integer> sequence;
+	Spinner sp_sequence_selector;
 	TextView tvTop;
 	TextView tvRemaining;
 	PopupWindow popupWindow;
-	MediaPlayer mediaPlayer;
 	PopupWindow exitPopupWindow;
 	SharedPreferences prefs;
 	SharedPreferences.Editor prefsEditor;
 	
 	boolean doubleBackToExitPressedOnce=false;
 	boolean onTest = true;
-	int currentIntervalNo=0;
-	int alarmState;
-	int OFF=0;
-	int ON=1;
-	int minuteFactor=60;
-	int cycle;
-	int progress;	
-	
-	int totalSeconds=0;
-	int elapsed=0;
 
-	String[] tones = {"Buzzer","Long Beep","Minions - Banana","Minions - Hello","Minions - Tadaa","Railroad Crossing Bell","Rooster","Temple Bell"};
+
+	String[] tones = {"Long Beep","Short Beep"};
 	int[] map;
 	ArrayAdapter<String> arrayAdapter;
 	
@@ -82,10 +72,41 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 	TextView tvStatus;
 
     PowerManager mgr;
-    WakeLock wakeLock;
 
-	/** Called when the activity is first created. */
+    /** Called when the activity is first created. */
 	
+    
+    @Override
+    protected void onResume()
+    {
+    	// TODO Auto-generated method stub
+    	super.onResume();
+    	AlarmService.isDisplayed=true;
+    	AlarmService.alarmActivity = this;
+    }
+    
+    @Override
+    protected void onPause()
+    {
+    	// TODO Auto-generated method stub
+    	super.onPause();
+    	AlarmService.isDisplayed=false;
+    	AlarmService.alarmActivity=null;
+    }
+    private void initUI()
+    {
+        etSequence = (EditText)findViewById(R.id.etSequence);
+        btnStart = (Button)findViewById(R.id.btn_main);
+        sp_toneSelector = (Spinner)findViewById(R.id.sp_tone_selector);
+        sp_sequence_selector = (Spinner)findViewById(R.id.spinner_sequence_selector_id);
+        tvStatus = (TextView)findViewById(R.id.tv_status);
+        
+        
+        progressBar = (ProgressBar)findViewById(R.id.progressBar);
+        tvTop = (TextView)findViewById(R.id.tv_header);
+        tvRemaining = (TextView)findViewById(R.id.tv_remaining);
+
+    }
     @Override
     public void onCreate(Bundle savedInstanceState) 
     {
@@ -93,17 +114,9 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
         setContentView(R.layout.main);
        
         
-        etSequence = (EditText)findViewById(R.id.etSequence);
-        btnStart = (Button)findViewById(R.id.btn_main);
-        sp_toneSelector = (Spinner)findViewById(R.id.sp_tone_selector);
-        tvStatus = (TextView)findViewById(R.id.tv_status);
+        initUI();
         
-        
-        progressBar = (ProgressBar)findViewById(R.id.progressBar);
-        tvTop = (TextView)findViewById(R.id.tv_header);
-        tvRemaining = (TextView)findViewById(R.id.tv_remaining);
-        alarmState=OFF;
-        
+
         
         tvTop.setText("Interval sequence(Ex:1 2 3)");
         tvRemaining.setText("");
@@ -124,7 +137,15 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
         	etSequence.setText(initswqtext);
         }
         
+        
         int initialToneIndex = prefs.getInt(toneKey, 0);
+        if(initialToneIndex>=tones.length)
+        {
+        	prefsEditor.putInt(toneKey, 0);
+        	prefsEditor.commit();
+        	initialToneIndex=0;
+        	
+        }
         
         arrayAdapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item, tones);
         sp_toneSelector.setAdapter(arrayAdapter);
@@ -132,170 +153,91 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
         sp_toneSelector.setSelection(initialToneIndex);
         
         map = new int[tones.length];
-        map[0] = R.raw.buzzer;
-        map[1] = R.raw.long_beep;
-        map[2] = R.raw.minions_banana;
-        map[3] = R.raw.minions_hello;
-        map[4] = R.raw.minions_taadaa;
-        map[5] = R.raw.railroad_crossing_bell;
-        map[6] = R.raw.rooster;
-        map[7] = R.raw.temple_bell;
+        map[0] = R.raw.longbeep;
+        map[1] = R.raw.shortbeep;
         
+        AlarmService.selectedTune=map[initialToneIndex];
         
-        progressBar.setProgress(0);
-        
-        btnStart.setBackgroundResource(R.drawable.button_shape);
-        
-        mgr = (PowerManager)getApplicationContext().getSystemService(Context.POWER_SERVICE);
-        wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock");
-       
+               
+       updateUIItemState();
+       updateSequenceSpinner();
     }
     
-    @Override
-    public void onBackPressed()
+    String[] sequences;
+    ArrayAdapter<String> arrayAdapterForSequences;
+    public void updateSequenceSpinner()
+	{
+    	int numberOfSequences = prefs.getInt("NumberOfSequences", 0);
+		sequences = new String[numberOfSequences];
+		for(int i=0;i<numberOfSequences;i++)
+		{
+			sequences[i] = prefs.getString("sequence"+i, "1 2 3");
+		}
+		arrayAdapterForSequences = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item, sequences);
+		sp_sequence_selector.setAdapter(arrayAdapterForSequences);
+		sp_sequence_selector.setOnItemSelectedListener(new Sp_SequenceSelectorListener());
+		
+		
+		int index = prefs.getInt("SelectedSequenceIndex", 0);
+		if(numberOfSequences>0)
+			sp_sequence_selector.setSelection(index);
+	}
+    
+    class Sp_SequenceSelectorListener implements OnItemSelectedListener
     {
-    	// TODO Auto-generated method stub
-    	//super.onBackPressed();
-  /* 			
-	    if (doubleBackToExitPressedOnce) 
-	    {
-	    	//Toast.makeText(this, "BACK pressed", Toast.LENGTH_SHORT).show();
-            super.onBackPressed();
-            return;
-        }
-        this.doubleBackToExitPressedOnce = true;
-        Toast.makeText(this, "Please click BACK again to exit", Toast.LENGTH_SHORT).show();
-        new Handler().postDelayed(new Runnable() {
-            public void run() {
-             doubleBackToExitPressedOnce=false;   
-            }
-        }, 5000);
+
+		public void onItemSelected(AdapterView<?> arg0, View arg1, int arg2,
+				long arg3)
+		{
+			// TODO Auto-generated method stub
+			//Toast.makeText(getApplicationContext(), "HERE", Toast.LENGTH_LONG).show();
+			int index = sp_sequence_selector.getSelectedItemPosition();
+			
+			prefsEditor.putInt("SelectedSequenceIndex", index);
+			prefsEditor.commit();
+			
+			String text = prefs.getString("sequence"+index, "1 2 3");
+			etSequence.setText(text);
+			
+		}
+
+		public void onNothingSelected(AdapterView<?> arg0)
+		{
+			// TODO Auto-generated method stub
+			
+		}
+    	
+    }
   
-*/    	
-    	showExitPopUp(R.layout.exit_popup, R.id.btn_exit_continue, R.id.btn_exit_exit);
-    }
-    
-    public void showExitPopUp(int popupLayout,int dismissButtonId,int exitButtonId) 
-	{
-    	if(exitPopupWindow!=null && exitPopupWindow.isShowing()) return;
-		LayoutInflater layoutInflater = (LayoutInflater)getBaseContext().getSystemService(LAYOUT_INFLATER_SERVICE);  
-			    
-		View popupView = layoutInflater.inflate(popupLayout, null);  
-		exitPopupWindow = new PopupWindow(popupView,LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT);  
-			             
-	    
-	    /*INITIALISE*/
-	    	    
-	    Button btnDismiss = (Button)popupView.findViewById(dismissButtonId);
-	    btnDismiss.setOnClickListener(new Button.OnClickListener(){
-
-			     public void onClick(View v) {
-			      // TODO Auto-generated method stub
-			      exitPopupWindow.dismiss();
-			     }});
-			         
-	    
-	    Button btnExit = (Button)popupView.findViewById(exitButtonId);
-	    btnExit.setOnClickListener(new Button.OnClickListener(){
-
-			     public void onClick(View v) {
-			      // TODO Auto-generated method stub
-			    	 
-			    	 
-			    	 stopAlarm();
-			    	 Intent intent = new Intent(Intent.ACTION_MAIN);
-			    	 intent.addCategory(Intent.CATEGORY_HOME);
-			    	 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-			    	 startActivity(intent);
-			     }});
-
-	    
-	   // popupWindow.showAsDropDown(btnOpenPopup, 50, -30);
-	    exitPopupWindow.showAtLocation(popupView.getRootView(),Gravity.CENTER, 0, 0);
-
-	}
-
-    
-    
-    @Override
-    protected void onStop()
+    public void addSequence(String text)
     {
-    	// TODO Auto-generated method stub
-    	super.onStop();
-    	
-    	if(alarmState==ON)
-    		Toast.makeText(getApplicationContext(), "Stopping Alarm", Toast.LENGTH_SHORT).show();
-    	stopAlarm();
-    	
-    		//Toast.makeText(getApplicationContext(), "They are killing me - on stop, state = "+alarmState, Toast.LENGTH_SHORT).show();
+    	int numberOfSequences = prefs.getInt("NumberOfSequences", 0);
+    	prefsEditor.putInt("NumberOfSequences", numberOfSequences+1);
+    	prefsEditor.putInt("SelectedSequenceIndex", numberOfSequences);
+    	prefsEditor.putString("sequence"+numberOfSequences, text);
+    	prefsEditor.commit();
+    	updateSequenceSpinner();
     }
-    
-
-    /**
-     * Changes countdown
-     */
-    public void changeState()
-	{
-		//TextView tv = (TextView)findViewById(R.id.tv_header);
-		//tv.setText( "Cycle "+cycle);
-		elapsed++;
-		
-		tvRemaining.setGravity(Gravity.CENTER);
-    	tvRemaining.setText(" "+(totalSeconds-elapsed) + " second(s) to next alarm");
-    	
-		progress = elapsed*100/totalSeconds;
-		progressBar.setProgress(progress);
-		
-	}
-    
-    //schedules next alarm
-    public void reschedule()
-    {
-    	
-    	int c = cycle;
-    	int in = currentIntervalNo;
-    	if(in==0)in = sequence.size();
-    	
-    	int delay = nextDelay();
-    	
-    	totalSeconds = delay*minuteFactor;
-    	elapsed=0;
-
-    	tvStatus.setText("Alarm running. Cycle : "+cycle);
-    	tvRemaining.setGravity(Gravity.CENTER);
-    	tvRemaining.setText(" "+(totalSeconds) + " second(s) to next alarm");
-    	Toast.makeText(getApplicationContext(), "Next Alarm after "+delay+" minute(s)", Toast.LENGTH_SHORT).show();
-    	   	
-		
-		myCountdownTimer = new MyCountdownTimer(delay*1000*minuteFactor, 1000);
-    	myCountdownTimer.start();
-    	
-    }
-    
-    
-
 	public void onClick(View v) 
 	{
 
 		// TODO Auto-generated method stub
 		if(v.getId()== R.id.btn_main)
 		{
-			if(alarmState==OFF)
-			{				
+			if(AlarmService.alarmRunning==false)
+			{	
+
 				if(etSequence.getText().toString().trim().equals(""))
 				{
 					Toast.makeText(getApplicationContext(), "Set sequence first !!", Toast.LENGTH_LONG).show();
 					return;
 				}
-		      
-				currentIntervalNo=0;
-		        sequence = new ArrayList<Integer>();
-		        cycle=0;
-		        
+				String text = etSequence.getText().toString().trim();
 
-				boolean success = initialiseNewSequence();
+				boolean success = AlarmService.initialiseNewSequence(text);
 				if(success)
 				{
+					addSequence(text);
 			        prefsEditor.putString(sequenceKey, etSequence.getText().toString().trim()); 
 			        prefsEditor.commit();
 				}
@@ -305,20 +247,7 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 					return;
 				}
 				
-				
-				progressBar.setProgress(0);
-				wakeLock.acquire();
-				//myCountdownTimer = new MyCountdownTimer(nextDelay()*1000*minuteFactor, 1000);
-				//myCountdownTimer.start();
-				reschedule();
-				
-				tvStatus.setText("Alarm running. Cycle : "+cycle);
-				
-				alarmState=ON;
-				btnStart.setText(stopText);
-				btnStart.setBackgroundResource(R.drawable.button_shape_red);
-				
-				etSequence.setEnabled(false);
+				startAlarm();
 			}
 		
 			else 
@@ -330,147 +259,58 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 //        timer.schedule(myTimerTask, nextDelay()*1000);
 	}
 	
+	
+	public void updateUIItemState()
+	{
+		if(AlarmService.alarmRunning == false) //not running
+		{
+			tvStatus.setText("Alarm is currently stopped");			
+			tvRemaining.setText("");
+			btnStart.setText(startText);
+			btnStart.setBackgroundResource(R.drawable.button_shape);
+			progressBar.setProgress(0);
+		}
+		else
+		{
+			tvStatus.setText("Alarm running. Cycle : "+ AlarmService.cycle);
+			tvRemaining.setText(" "+(AlarmService.totalSeconds) + " second(s) to next alarm");
+			btnStart.setBackgroundResource(R.drawable.button_shape_red);
+			btnStart.setText(stopText);
+	   		int progress = AlarmService.elapsed*100/AlarmService.totalSeconds;
+	   		progressBar.setProgress(progress);
+
+		}
+	}
+	public void startAlarm()
+	{
+		progressBar.setProgress(0);
+		
+		etSequence.setEnabled(false);
+		updateUIItemState();
+		startService(new Intent(AlarmActivity.this,AlarmService.class));
+		
+	}
+	
 	public void stopAlarm()
 	{
-		if(myCountdownTimer!=null)
-			myCountdownTimer.cancel();
-		
-		if(wakeLock.isHeld())
-			wakeLock.release();
-		
-		if(mediaPlayer!=null)
-		{
-			try
-			{
-				mediaPlayer.stop();
-			}
-			catch (Exception exception) {
-				// TODO: handle exception
-				Log.d("az", "already stopped - stop() failed");
-			}
-			try
-			{
-				mediaPlayer.reset();
-				mediaPlayer.release();
-			}
-			catch (Exception exception) {
-				// TODO: handle exception
-				Log.d("az", "release failed");
-			}
-
-		}
-		
+	
 		progressBar.setProgress(0);
-		tvStatus.setText("Alarm is currently stopped");
-		tvRemaining.setText("");
-		alarmState = OFF;
-		btnStart.setText(startText);
-		btnStart.setBackgroundResource(R.drawable.button_shape);
-
+		
+		stopService(new Intent(AlarmActivity.this,AlarmService.class));
 	}
 	
-	private boolean initialiseNewSequence() 
-	{
-		String text = etSequence.getText().toString().trim();
-		StringTokenizer st = new StringTokenizer(text,", -;");
-		
-		
-		currentIntervalNo=0;
-		
-		try
-		{
-			sequence.clear();
-			while(st.hasMoreTokens())
-			{
-				Integer interval = new Integer(st.nextElement().toString());
-				if(interval.intValue()<=0) return false;
-				sequence.add(interval);
-			}
-		}
-		catch (Exception exception) {
-			// TODO: handle exception
-			return false;
-		}
-		return true;
-	}
-
-
-    public int nextDelay()
-    {
-    	int delay = sequence.get(currentIntervalNo);
-    	if(currentIntervalNo==0)
-    	{
-    		cycle++;
-    	}
-    		
-    	currentIntervalNo++;
-    	currentIntervalNo = currentIntervalNo % sequence.size();
-    			
-    	
-		return delay;
-    }
-
-
 	
-
-    public class MyCountdownTimer extends CountDownTimer implements OnCompletionListener
-    {
-
-		public MyCountdownTimer(long millisInFuture, long countDownInterval) {
-			super(millisInFuture, countDownInterval);
-			// TODO Auto-generated constructor stub			
-		}
-
-		@Override
-		public void onFinish() {
-			
-			if(popupWindow!=null)
-				popupWindow.dismiss();
-			// TODO Auto-generated method stub
-			int item = sp_toneSelector.getSelectedItemPosition();
-			progressBar.setProgress(100);
-			
-	//		if(mediaPlayer==null )
-		//	{
-					
-				mediaPlayer = MediaPlayer.create(getApplicationContext(), map[item]);
-	    		mediaPlayer.start();
-		    	mediaPlayer.setOnCompletionListener(this);	
-//			}
-//			else if(mediaPlayer.isPl)
-
-				
-		    showPopUp(R.layout.mute_alarm, R.id.mute_alarm);
-		    reschedule();
-		}
-
-		@Override
-		public void onTick(long millisUntilFinished) {
-			// TODO Auto-generated method stub
-			changeState();
-		}
-
-		public void onCompletion(MediaPlayer mp)
-		{
-			// TODO Auto-generated method stub
-			if(mp!=null)mp.release();
-			if(popupWindow!=null)
-			{
-				popupWindow.dismiss();
-			}
-			
-		}
-    	
-    }
-
-
-
+   
 	public void onItemSelected(AdapterView<?> arg0, View arg1, int arg2, long arg3)
 	{
 		// TODO Auto-generated method stub
 		int item = sp_toneSelector.getSelectedItemPosition();
+		
 		prefsEditor.putInt(toneKey, item);
 		prefsEditor.commit();	
+		
+        AlarmService.selectedTune=map[item];
+
 	}
 
 	public void onNothingSelected(AdapterView<?> arg0)
@@ -496,8 +336,8 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 			     public void onClick(View v) {
 			      // TODO Auto-generated method stub
 			    	 
-			    	 if(mediaPlayer.isPlaying())
-			    		 mediaPlayer.stop();
+			    	 if(AlarmService.mediaPlayer.isPlaying())
+			    		 AlarmService.mediaPlayer.stop();
 			    	 
 			      popupWindow.dismiss();
 			     }});
