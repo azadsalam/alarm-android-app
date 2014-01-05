@@ -14,5 +14,6 @@
     <color name="color_btn_stop">#99CF0808</color>
     <color name="exit_popup_background">#FFF3F3F3</color>
     <color name="mute_popup_background">#AAF3F3F3</color>
+    <string name="btn_txt_pause">Pause</string>
 
 </resources>

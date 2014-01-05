@@ -5,9 +5,14 @@ import java.util.StringTokenizer;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.azad.alarm.AlarmService.MyCountdownTimer;
+
 
 import android.R.bool;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -44,8 +49,8 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 	
 	ProgressBar progressBar;
 	EditText etSequence;
-	Button btnStart;
-	
+	Button btnStart,btnPause;
+
 	Spinner sp_toneSelector;
 	Spinner sp_sequence_selector;
 	TextView tvTop;
@@ -71,7 +76,6 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 	
 	TextView tvStatus;
 
-    PowerManager mgr;
 
     /** Called when the activity is first created. */
 	
@@ -97,6 +101,7 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
     {
         etSequence = (EditText)findViewById(R.id.etSequence);
         btnStart = (Button)findViewById(R.id.btn_main);
+        btnPause = (Button)findViewById(R.id.btn_pause);
         sp_toneSelector = (Spinner)findViewById(R.id.sp_tone_selector);
         sp_sequence_selector = (Spinner)findViewById(R.id.spinner_sequence_selector_id);
         tvStatus = (TextView)findViewById(R.id.tv_status);
@@ -105,6 +110,9 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
         progressBar = (ProgressBar)findViewById(R.id.progressBar);
         tvTop = (TextView)findViewById(R.id.tv_header);
         tvRemaining = (TextView)findViewById(R.id.tv_remaining);
+        
+        
+        
 
     }
     @Override
@@ -115,15 +123,14 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
        
         
         initUI();
-        
 
-        
         tvTop.setText("Interval sequence(Ex:1 2 3)");
         tvRemaining.setText("");
         tvRemaining.setGravity(Gravity.CENTER);
         
         
         btnStart.setOnClickListener(this);
+        btnPause.setOnClickListener(this);
         
         prefs = this.getSharedPreferences("azad.alarm.sharedPreferences", Context.MODE_PRIVATE);
         prefsEditor = prefs.edit();
@@ -177,7 +184,6 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 		sp_sequence_selector.setAdapter(arrayAdapterForSequences);
 		sp_sequence_selector.setOnItemSelectedListener(new Sp_SequenceSelectorListener());
 		
-		
 		int index = prefs.getInt("SelectedSequenceIndex", 0);
 		if(numberOfSequences>0)
 			sp_sequence_selector.setSelection(index);
@@ -211,6 +217,8 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
   
     public void addSequence(String text)
     {
+    	if(existsAlready(text)) return;
+    	
     	int numberOfSequences = prefs.getInt("NumberOfSequences", 0);
     	prefsEditor.putInt("NumberOfSequences", numberOfSequences+1);
     	prefsEditor.putInt("SelectedSequenceIndex", numberOfSequences);
@@ -218,6 +226,17 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
     	prefsEditor.commit();
     	updateSequenceSpinner();
     }
+    public boolean existsAlready(String text)
+	{
+    	int numberOfSequences = prefs.getInt("NumberOfSequences", 0);
+    	
+    	for(int i=0;i<numberOfSequences;i++)
+    	{
+    		if(prefs.getString("sequence"+i, "").equalsIgnoreCase(text))
+    				return true;
+    	}
+    	return false;
+	}
 	public void onClick(View v) 
 	{
 
@@ -255,10 +274,40 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 				stopAlarm();
 				etSequence.setEnabled(true);
 			}
-		}	
+		}
+		else if(v.getId()==R.id.btn_pause)
+		{
+//			Toast.makeText(getApplicationContext(), "sadf", Toast.LENGTH_LONG).show();
+			if(AlarmService.alarmRunning==false)return;
+			
+			if(AlarmService.alarmPaused == true)
+			{
+				resume();
+			}
+			else 
+			{
+				pause();
+			}
+			
+		}
 //        timer.schedule(myTimerTask, nextDelay()*1000);
 	}
 	
+	
+	public void pause()
+	{
+		
+		btnPause.setText("RESUME");
+		AlarmService.alarmService.pause();
+		
+	}
+	
+	public void resume()
+	{
+		btnPause.setText("Pause");
+		AlarmService.alarmService.resume();
+		
+	}
 	
 	public void updateUIItemState()
 	{
@@ -268,36 +317,56 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 			tvRemaining.setText("");
 			btnStart.setText(startText);
 			btnStart.setBackgroundResource(R.drawable.button_shape);
+			
+			btnPause.setVisibility(View.GONE);
 			progressBar.setProgress(0);
 		}
 		else
 		{
+			
 			tvStatus.setText("Alarm running. Cycle : "+ AlarmService.cycle);
-			tvRemaining.setText(" "+(AlarmService.totalSeconds) + " second(s) to next alarm");
+			tvRemaining.setText(" "+(AlarmService.totalSeconds-AlarmService.elapsed) + " second(s) to next alarm");
 			btnStart.setBackgroundResource(R.drawable.button_shape_red);
 			btnStart.setText(stopText);
 	   		int progress = AlarmService.elapsed*100/AlarmService.totalSeconds;
 	   		progressBar.setProgress(progress);
-
+	   		
+	   		if(AlarmService.alarmPaused)
+	   		{
+	   			btnPause.setText("RESUME");
+	   		}
+	   		else
+	   		{
+	   			btnPause.setText("Pause");
+	   		}
 		}
 	}
 	public void startAlarm()
 	{
+		btnPause.setEnabled(true);
 		progressBar.setProgress(0);
 		
 		etSequence.setEnabled(false);
+		
+		AlarmService.alarmPaused=false;
 		updateUIItemState();
 		startService(new Intent(AlarmActivity.this,AlarmService.class));
 		
+	
+		btnPause.setVisibility(View.VISIBLE);
 	}
 	
 	public void stopAlarm()
 	{
-	
+		btnPause.setEnabled(false);
 		progressBar.setProgress(0);
-		
+		AlarmService.alarmPaused=false; 
+
 		stopService(new Intent(AlarmActivity.this,AlarmService.class));
+		btnPause.setVisibility(View.GONE);
 	}
+	
+	
 	
 	
    

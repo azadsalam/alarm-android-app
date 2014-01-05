@@ -3,6 +3,8 @@ package com.azad.alarm;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -14,6 +16,7 @@ import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.Toast;
 
 public class AlarmService extends Service
@@ -22,17 +25,20 @@ public class AlarmService extends Service
 	static MyCountdownTimer myCountdownTimer;
 	static ArrayList<Integer> sequence;
 	static int currentIntervalNo=0;
-	static int minuteFactor=1;
+	static int minuteFactor=60;
 	static int cycle;
 	static int progress;		
 	static int totalSeconds=0;
 	static int elapsed=0;
-
+	static int delay;
 	static int selectedTune=0;
 	static boolean isDisplayed=false;
 	static boolean alarmRunning=false;
+	static boolean alarmPaused =false;
 	public static AlarmActivity alarmActivity;
 	public static AlarmService alarmService;
+	static Notification note;
+	static PendingIntent pi;
 	public static void initialise(AlarmActivity ac)
 	{
 		alarmActivity = ac;
@@ -45,6 +51,14 @@ public class AlarmService extends Service
 		super.onCreate();
 		alarmService = this;
 		
+		    note=new Notification(R.drawable.icon_gray, "Alarm started", System.currentTimeMillis());
+			Intent i=new Intent(this, AlarmActivity.class);
+			i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+			pi=PendingIntent.getActivity(this, 0,i, 0);
+			note.setLatestEventInfo(this, "Alarm","Alarm is running", pi);
+			note.flags|=Notification.FLAG_NO_CLEAR;
+			startForeground(200805030, note);
+
 		//Toast.makeText(this,"Service created ...", Toast.LENGTH_SHORT).show();
 	}
 	
@@ -55,7 +69,7 @@ public class AlarmService extends Service
     	int in = currentIntervalNo;
     	if(in==0)in = sequence.size();
     	
-    	int delay = nextDelay();
+    	delay = nextDelay();
     	
     	totalSeconds = delay*minuteFactor;
     	elapsed=0;
@@ -88,8 +102,27 @@ public class AlarmService extends Service
 		return delay;
     }
 
+    
+	public void pause()
+	{
+    	alarmPaused = true;
+    	myCountdownTimer.cancel();
+		//note.setLatestEventInfo(this, "Alarm","Alarm is paused", pi);
+    	changeState();
+	}
+	
+	public void resume()
+	{
+		
+		myCountdownTimer = new MyCountdownTimer((totalSeconds-elapsed)*1000, 1000);
+		myCountdownTimer.start();
+		alarmPaused = false;
+		//note.setLatestEventInfo(this, "Alarm","Alarm is running", pi);
+		changeState();
+	}
+    
 
-    public class MyCountdownTimer extends CountDownTimer implements OnCompletionListener
+    class MyCountdownTimer extends CountDownTimer implements OnCompletionListener
     {
 
 		public MyCountdownTimer(long millisInFuture, long countDownInterval) {
@@ -97,6 +130,7 @@ public class AlarmService extends Service
 			// TODO Auto-generated constructor stub			
 		}
 
+		
 		@Override
 		public void onFinish() 
 		{
@@ -165,21 +199,36 @@ public class AlarmService extends Service
    		//tv.setText( "Cycle "+cycle);
    		if(alarmRunning)
    		{
-	    	elapsed++;
-	   
-	   		if(isDisplayed)
-	   		{  			
-		   		alarmActivity.tvRemaining.setGravity(Gravity.CENTER);
-		   		alarmActivity.tvRemaining.setText(" "+(totalSeconds-elapsed) + " second(s) to next alarm");
-		       	
-		   		progress = elapsed*100/totalSeconds;
-		   		alarmActivity.progressBar.setProgress(progress);
-	   		}
+   			if(alarmPaused==false)
+   			{
+		    	elapsed++;
+		   
+		   		if(isDisplayed)
+		   		{  			
+		   			alarmActivity.tvStatus.setText("Alarm running. Cycle : "+ AlarmService.cycle);
+			   		alarmActivity.tvRemaining.setGravity(Gravity.CENTER);
+			   	
+			   		alarmActivity.tvRemaining.setText(" "+(totalSeconds-elapsed) + " second(s) to next alarm");
+			       	
+			   		progress = elapsed*100/totalSeconds;
+			   		alarmActivity.progressBar.setProgress(progress);
+		   		}
+   			}
+   			else
+   			{
+		   		if(isDisplayed)
+		   		{  			
+		   			alarmActivity.tvStatus.setText("Alarm paused. Cycle : "+ cycle);
+			   		alarmActivity.tvRemaining.setGravity(Gravity.CENTER);
+			   		alarmActivity.tvRemaining.setText(" "+(totalSeconds-elapsed) + " second(s) remaining for the next alarm");
+
+			   		progress = elapsed*100/totalSeconds;
+			   		alarmActivity.progressBar.setProgress(progress);
+		   		}
+   			}
    		}
    	}
-    
-    
-       
+     
 	
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
@@ -204,6 +253,7 @@ public class AlarmService extends Service
 		super.onDestroy();
 		alarmService = null;
 		stopAlarm();
+		stopForeground(true);
 		//Toast.makeText(this, "Service destroyed ...", Toast.LENGTH_LONG).show();
 	}
 	
