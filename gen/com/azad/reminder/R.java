@@ -5,7 +5,7 @@
  * should not be modified by hand.
  */
 
-package com.azad.alarm;
+package com.azad.reminder;
 
 public final class R {
     public static final class attr {
@@ -32,19 +32,21 @@ public final class R {
         public static final int icon_gray=0x7f020008;
     }
     public static final class id {
+        public static final int btn_delete=0x7f070007;
         public static final int btn_exit_continue=0x7f070001;
         public static final int btn_exit_exit=0x7f070002;
-        public static final int btn_main=0x7f070007;
-        public static final int btn_pause=0x7f070008;
+        public static final int btn_main=0x7f070009;
+        public static final int btn_pause=0x7f07000a;
         public static final int etSequence=0x7f070004;
-        public static final int imageView1=0x7f07000b;
-        public static final int mute_alarm=0x7f07000c;
-        public static final int progressBar=0x7f07000a;
-        public static final int sp_tone_selector=0x7f070006;
-        public static final int spinner_sequence_selector_id=0x7f070005;
+        public static final int imageView1=0x7f07000d;
+        public static final int mute_alarm=0x7f07000e;
+        public static final int progressBar=0x7f07000c;
+        public static final int relativeLayout1=0x7f070005;
+        public static final int sp_tone_selector=0x7f070008;
+        public static final int spinner_sequence_selector_id=0x7f070006;
         public static final int tv_header=0x7f070003;
         public static final int tv_remaining=0x7f070000;
-        public static final int tv_status=0x7f070009;
+        public static final int tv_status=0x7f07000b;
     }
     public static final class layout {
         public static final int exit_popup=0x7f030000;
@@ -53,7 +55,8 @@ public final class R {
     }
     public static final class raw {
         public static final int longbeep=0x7f040000;
-        public static final int shortbeep=0x7f040001;
+        public static final int mute=0x7f040001;
+        public static final int shortbeep=0x7f040002;
     }
     public static final class string {
         public static final int app_name=0x7f050001;

@@ -2,7 +2,7 @@
 <resources>
 
     <string name="hello">Hello World, AlarmActivity!</string>
-    <string name="app_name">Alarm</string>
+    <string name="app_name">Reminder</string>
     <string name="initialSequence">5 3 4</string>
     <string name="btn_start">START</string>
     <string name="btn_stop">Stop</string>

@@ -1,11 +1,12 @@
-package com.azad.alarm;
+package com.azad.reminder;
 
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import com.azad.alarm.AlarmService.MyCountdownTimer;
+import com.azad.reminder.R;
+import com.azad.reminder.ReminderService.MyCountdownTimer;
 
 
 import android.R.bool;
@@ -16,6 +17,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
@@ -24,7 +26,11 @@ import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+import android.text.Spannable;
+import android.text.SpannableString;
 import android.text.format.Time;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -34,6 +40,7 @@ import android.view.ViewGroup.LayoutParams;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.TextView.BufferType;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -44,12 +51,12 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class AlarmActivity extends Activity implements OnClickListener,OnItemSelectedListener
+public class ReminderActivity extends Activity implements OnClickListener,OnItemSelectedListener
 {
 	
 	ProgressBar progressBar;
 	EditText etSequence;
-	Button btnStart,btnPause;
+	Button btnStart,btnPause,btnDelete;
 
 	Spinner sp_toneSelector;
 	Spinner sp_sequence_selector;
@@ -64,7 +71,7 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 	boolean onTest = true;
 
 
-	String[] tones = {"Long Beep","Short Beep"};
+	String[] tones = {"Mute","Long Beep","Short Beep"};
 	int[] map;
 	ArrayAdapter<String> arrayAdapter;
 	
@@ -79,23 +86,138 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 
     /** Called when the activity is first created. */
 	
+	
+	
+	void changeColorEditTextStart()
+	{
+		String text = 	prefs.getString(sequenceKey, null);;
+
+		
+		//if(true) return;
+		SpannableString seq=null;
+		String part1 = "";
+		String part2 = "";
+		String part3 = "";
+		
+		StringTokenizer st = new StringTokenizer(text,ReminderService.delimeterList);
+		
+		boolean first=true;
+		while(st.hasMoreTokens())
+		{
+			String token = st.nextToken();
+			Log.d("tokens",token);
+			if(first)
+			{
+				part1 += token;
+				first=false;
+			}
+			
+			else
+			{
+				
+				 part3 += ( ", "+token);
+
+			}
+			
+		}
+
+		
+		try
+		{
+		 seq = new SpannableString( part1+part3);
+		 Log.d("et text", seq.toString());
+		  
+		 seq.setSpan(new ForegroundColorSpan(Color.RED), 0,part1.length(), 0);
+		
+		 etSequence.setText(seq,BufferType.SPANNABLE);
+		}
+		catch (Exception exception) {
+			// TODO: handle exception
+			Log.d("et text length", " "+ seq.length());
+		}
+	} 
+	
+	
+	void changeColorEditText()
+	{
+		String text = 	prefs.getString(sequenceKey, null);;
+
+		if(ReminderService.alarmRunning==false) 
+		{	
+			etSequence.setText(text);
+			return;
+		}
+		
+		//if(true) return;
+		SpannableString seq=null;
+		String part1 = "";
+		String part2 = "";
+		String part3 = "";
+		
+		StringTokenizer st = new StringTokenizer(text,ReminderService.delimeterList);
+		int count=0;
+		int countLimit = ReminderService.currentIntervalNo;
+		if(countLimit == 0) countLimit = ReminderService.sequence.size();
+		while(st.hasMoreTokens())
+		{
+			String token = st.nextToken();
+			Log.d("tokens",token);
+			if(count< countLimit - 1)
+			{
+				if(count==0) part1 += token;
+				else part1 += ( ", "+token);
+			}
+			else if(count== countLimit - 1)
+			{
+				part2 += token;
+							
+			}
+			else
+			{
+				if(count==0) part3 += token;
+				else part3 += ( ", "+token);
+
+			}
+			
+			count++;
+		}
+		if(!part1.equals(""))part1 += ", ";
+
+		
+		try
+		{
+		 seq = new SpannableString( part1+part2+part3);
+		 Log.d("et text", seq.toString());
+		  
+		 seq.setSpan(new ForegroundColorSpan(Color.RED), part1.length(), part1.length()+part2.length(), 0);
+		
+		 etSequence.setText(seq,BufferType.SPANNABLE);
+		}
+		catch (Exception exception) {
+			// TODO: handle exception
+			Log.d("et text length", " "+ seq.length());
+		}
+	} 
     
     @Override
     protected void onResume()
     {
     	// TODO Auto-generated method stub
     	super.onResume();
-    	AlarmService.isDisplayed=true;
-    	AlarmService.alarmActivity = this;
+    	ReminderService.isDisplayed=true;
+    	ReminderService.alarmActivity = this;
+    	
+    	//changeColorEditText();
     }
+    
     
     @Override
     protected void onPause()
     {
     	// TODO Auto-generated method stub
     	super.onPause();
-    	AlarmService.isDisplayed=false;
-    	AlarmService.alarmActivity=null;
+    	ReminderService.isDisplayed=false;
+    	ReminderService.alarmActivity=null;
     }
     private void initUI()
     {
@@ -105,15 +227,12 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
         sp_toneSelector = (Spinner)findViewById(R.id.sp_tone_selector);
         sp_sequence_selector = (Spinner)findViewById(R.id.spinner_sequence_selector_id);
         tvStatus = (TextView)findViewById(R.id.tv_status);
-        
+        btnDelete = (Button) findViewById(R.id.btn_delete);
         
         progressBar = (ProgressBar)findViewById(R.id.progressBar);
         tvTop = (TextView)findViewById(R.id.tv_header);
         tvRemaining = (TextView)findViewById(R.id.tv_remaining);
         
-        
-        
-
     }
     @Override
     public void onCreate(Bundle savedInstanceState) 
@@ -131,6 +250,7 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
         
         btnStart.setOnClickListener(this);
         btnPause.setOnClickListener(this);
+        btnDelete.setOnClickListener(this);
         
         prefs = this.getSharedPreferences("azad.alarm.sharedPreferences", Context.MODE_PRIVATE);
         prefsEditor = prefs.edit();
@@ -160,10 +280,11 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
         sp_toneSelector.setSelection(initialToneIndex);
         
         map = new int[tones.length];
-        map[0] = R.raw.longbeep;
-        map[1] = R.raw.shortbeep;
+        map[0] = R.raw.mute;
+        map[1] = R.raw.longbeep;
+        map[2] = R.raw.shortbeep;
         
-        AlarmService.selectedTune=map[initialToneIndex];
+        ReminderService.selectedTune=map[initialToneIndex];
         
                
        updateUIItemState();
@@ -226,6 +347,35 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
     	prefsEditor.commit();
     	updateSequenceSpinner();
     }
+    
+    public void removeSequence()
+    {
+    	int numberOfSequences = prefs.getInt("NumberOfSequences", 0);
+    	
+    	int index = sp_sequence_selector.getSelectedItemPosition();
+    	
+    	if(index<0) return;
+    	//select index
+    	
+    	for(int i=index+1;i<numberOfSequences;i++)
+    	{
+    		String seq = prefs.getString("sequence"+(i),"" );
+    		prefsEditor.putString("sequence"+(i-1), seq);
+    	}
+    	
+    	if(numberOfSequences>1)
+    		prefsEditor.putInt("SelectedSequenceIndex", 0);
+    	else
+    	{
+    		prefsEditor.putInt("SelectedSequenceIndex", 0);
+    		etSequence.setText("");
+    	}
+    	
+    	prefsEditor.putInt("NumberOfSequences", numberOfSequences-1);
+    	prefsEditor.commit();
+    	updateSequenceSpinner();
+    	
+    }
     public boolean existsAlready(String text)
 	{
     	int numberOfSequences = prefs.getInt("NumberOfSequences", 0);
@@ -243,7 +393,7 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 		// TODO Auto-generated method stub
 		if(v.getId()== R.id.btn_main)
 		{
-			if(AlarmService.alarmRunning==false)
+			if(ReminderService.alarmRunning==false)
 			{	
 
 				if(etSequence.getText().toString().trim().equals(""))
@@ -253,8 +403,8 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 				}
 				String text = etSequence.getText().toString().trim();
 
-				boolean success = AlarmService.initialiseNewSequence(text);
-				if(success)
+				text = ReminderService.initialiseNewSequence(text);
+				if(text != null)
 				{
 					addSequence(text);
 			        prefsEditor.putString(sequenceKey, etSequence.getText().toString().trim()); 
@@ -267,6 +417,8 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 				}
 				
 				startAlarm();
+				
+				changeColorEditTextStart();
 			}
 		
 			else 
@@ -278,9 +430,9 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 		else if(v.getId()==R.id.btn_pause)
 		{
 //			Toast.makeText(getApplicationContext(), "sadf", Toast.LENGTH_LONG).show();
-			if(AlarmService.alarmRunning==false)return;
+			if(ReminderService.alarmRunning==false)return;
 			
-			if(AlarmService.alarmPaused == true)
+			if(ReminderService.alarmPaused == true)
 			{
 				resume();
 			}
@@ -290,6 +442,11 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 			}
 			
 		}
+		
+		else if(v.getId()==R.id.btn_delete)
+		{
+			removeSequence(	);	
+		}
 //        timer.schedule(myTimerTask, nextDelay()*1000);
 	}
 	
@@ -298,40 +455,48 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 	{
 		
 		btnPause.setText("RESUME");
-		AlarmService.alarmService.pause();
+		ReminderService.alarmService.pause();
 		
 	}
 	
 	public void resume()
 	{
 		btnPause.setText("Pause");
-		AlarmService.alarmService.resume();
+		ReminderService.alarmService.resume();
 		
 	}
 	
 	public void updateUIItemState()
 	{
-		if(AlarmService.alarmRunning == false) //not running
+		
+		if(ReminderService.alarmRunning == false) //not running
 		{
+			etSequence.setEnabled(true);
+			sp_sequence_selector.setEnabled(true);
 			tvStatus.setText("Alarm is currently stopped");			
 			tvRemaining.setText("");
 			btnStart.setText(startText);
 			btnStart.setBackgroundResource(R.drawable.button_shape);
 			
+			btnDelete.setEnabled(true);
 			btnPause.setVisibility(View.GONE);
 			progressBar.setProgress(0);
 		}
 		else
 		{
+		
+			btnDelete.setEnabled(false);
+			etSequence.setEnabled(false);
+			sp_sequence_selector.setEnabled(false);
 			
-			tvStatus.setText("Alarm running. Cycle : "+ AlarmService.cycle);
-			tvRemaining.setText(" "+(AlarmService.totalSeconds-AlarmService.elapsed) + " second(s) to next alarm");
+			tvStatus.setText("Alarm running. Cycle : "+ ReminderService.cycle);
+			tvRemaining.setText(" "+(ReminderService.totalSeconds-ReminderService.elapsed) + " second(s) to next alarm");
 			btnStart.setBackgroundResource(R.drawable.button_shape_red);
 			btnStart.setText(stopText);
-	   		int progress = AlarmService.elapsed*100/AlarmService.totalSeconds;
+	   		int progress = ReminderService.elapsed*100/ReminderService.totalSeconds;
 	   		progressBar.setProgress(progress);
 	   		
-	   		if(AlarmService.alarmPaused)
+	   		if(ReminderService.alarmPaused)
 	   		{
 	   			btnPause.setText("RESUME");
 	   		}
@@ -340,30 +505,37 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 	   			btnPause.setText("Pause");
 	   		}
 		}
+		changeColorEditText();
 	}
 	public void startAlarm()
 	{
 		btnPause.setEnabled(true);
 		progressBar.setProgress(0);
-		
+
 		etSequence.setEnabled(false);
 		
-		AlarmService.alarmPaused=false;
-		updateUIItemState();
-		startService(new Intent(AlarmActivity.this,AlarmService.class));
-		
+		ReminderService.alarmPaused=false;
+		//ReminderService.alarmRunning =true;
+		startService(new Intent(ReminderActivity.this,ReminderService.class));
+		sp_sequence_selector.setEnabled(false);
 	
 		btnPause.setVisibility(View.VISIBLE);
+		
+		updateUIItemState();
+
 	}
 	
 	public void stopAlarm()
 	{
 		btnPause.setEnabled(false);
 		progressBar.setProgress(0);
-		AlarmService.alarmPaused=false; 
+		ReminderService.alarmPaused=false; 
 
-		stopService(new Intent(AlarmActivity.this,AlarmService.class));
+		stopService(new Intent(ReminderActivity.this,ReminderService.class));
 		btnPause.setVisibility(View.GONE);
+		sp_sequence_selector.setEnabled(true);
+		btnDelete.setEnabled(false);
+		etSequence.setText(prefs.getString(sequenceKey, null));
 	}
 	
 	
@@ -378,7 +550,7 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 		prefsEditor.putInt(toneKey, item);
 		prefsEditor.commit();	
 		
-        AlarmService.selectedTune=map[item];
+        ReminderService.selectedTune=map[item];
 
 	}
 
@@ -405,8 +577,8 @@ public class AlarmActivity extends Activity implements OnClickListener,OnItemSel
 			     public void onClick(View v) {
 			      // TODO Auto-generated method stub
 			    	 
-			    	 if(AlarmService.mediaPlayer.isPlaying())
-			    		 AlarmService.mediaPlayer.stop();
+			    	 if(ReminderService.mediaPlayer.isPlaying())
+			    		 ReminderService.mediaPlayer.stop();
 			    	 
 			      popupWindow.dismiss();
 			     }});
