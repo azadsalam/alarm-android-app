@@ -59,17 +59,76 @@ public class ReminderService extends Service
 		alarmActivity = ac;
 	}
 	
-	public void initialiseStateVariables()
+	public static void updateStateVariables_Stopped_to_Start()
 	{
-		
+		alarmRunning = true;
+		alarmPaused = false;
+		currentIntervalNo=0;
+		cycle=0;
 	}
 	
+	public static void updateStateVariables_Running_toPause()
+	{
+		alarmRunning = true; //no need
+    	alarmPaused = true;
+	}
+	
+	public static void updateStateVariables_Pause_to_Resume()
+	{
+		alarmRunning = true; //no need
+    	alarmPaused = false;
+	}
+	
+	public static void updateStateVariables_Running_to_Stop()
+	{
+		alarmRunning = false;
+		alarmPaused = false;
+	}
+	 //OK
+    
+	public static void updateStateVariables_on_tick()
+	{
+   		if(alarmRunning)
+   		{
+   			
+   			if(alarmPaused==false)
+   			{
+		    	elapsed++;
+		   		progress = elapsed*100/totalSeconds;
+
+		   
+		   		if(isDisplayed)
+		   		{  			
+		   			alarmActivity.updateUI_RemainingSecondsInfo();
+		   		}
+   			}
+   			
+   		}
+
+	}
+	
+	public int updateStateVariables_next_alarm()
+    {
+    	int delay = sequence.get(currentIntervalNo);
+    	if(currentIntervalNo==0)
+    	{
+    		cycle++;
+    	}
+    		
+    	currentIntervalNo++;
+    	currentIntervalNo = currentIntervalNo % sequence.size();
+    			    	
+		return delay;
+    }
+     
 	@Override
 	public void onCreate()
 	{
 		// TODO Auto-generated method stub
 		super.onCreate();
 		alarmService = this;
+		
+		//updateStateVariables_Stopped_to_Start();
 		
 	    note=new Notification(R.drawable.icon_gray, "Alarm started", System.currentTimeMillis());
 		Intent i=new Intent(this, ReminderActivity.class);
@@ -84,8 +143,6 @@ public class ReminderService extends Service
 	    partialWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Loneworker - PARTIAL WAKE LOCK");
 
 	    partialWakeLock.acquire();
-	    
-	    alarmRunning=true;
 	    
 		//Toast.makeText(this,"Service created ...", Toast.LENGTH_SHORT).show();
 	}
@@ -110,19 +167,17 @@ public class ReminderService extends Service
 	//schedules next alarm //ok
     public void reschedule()
     {   	
-    	int c = cycle;
-    	int in = currentIntervalNo;
-    	if(in==0)in = sequence.size();
+    	//int in = currentIntervalNo;
+    	//if(in==0)in = sequence.size();
     	
-    	delay = nextDelay();
+    	delay = updateStateVariables_next_alarm();
     	
     	totalSeconds = delay*minuteFactor;
     	elapsed=0;
 
     	if(isDisplayed)
     	{
-	    	
-	    	alarmActivity.updateUIItemState();
+	    	alarmActivity.initialiseUIState();
     	}
     	//Toast.makeText(getApplicationContext(), "Next Alarm after "+delay+" minute(s)", Toast.LENGTH_SHORT).show();
     	   	
@@ -132,40 +187,30 @@ public class ReminderService extends Service
     	
     }
     
-    //OK
-    public int nextDelay()
-    {
-    	int delay = sequence.get(currentIntervalNo);
-    	if(currentIntervalNo==0)
-    	{
-    		cycle++;
-    	}
-    		
-    	currentIntervalNo++;
-    	currentIntervalNo = currentIntervalNo % sequence.size();
-    			    	
-		return delay;
-    }
-
     
 	public void pause()
 	{
-    	alarmPaused = true;
+		updateStateVariables_Running_toPause();
+		if(isDisplayed)alarmActivity.updateUI_Running_toPause();
     	myCountdownTimer.cancel();
     	changeNotificationText("Alarm Paused","Alarm is paused");
-    	changeState();
+ 
 	}
 	
 	public void resume()
 	{
 		
+		updateStateVariables_Pause_to_Resume();
+		if(elapsed>0) elapsed--;
 		myCountdownTimer = new MyCountdownTimer((totalSeconds-elapsed)*1000, 1000);
 		myCountdownTimer.start();
-		alarmPaused = false;
+		
     	changeNotificationText("Alarm Resumed","Alarm is running");
 
 		//note.setLatestEventInfo(this, "Alarm","Alarm is running", pi);
-		changeState();
+		//changeState();
+		if(isDisplayed)alarmActivity.updateUI_pause_to_resume();
+		
 	}
     
 
@@ -232,7 +277,8 @@ public class ReminderService extends Service
 		@Override
 		public void onTick(long millisUntilFinished) {
 			// TODO Auto-generated method stub
-			changeState();
+			updateStateVariables_on_tick();
+
 		}
 
 		public void onCompletion(MediaPlayer mp)
@@ -250,57 +296,17 @@ public class ReminderService extends Service
     }
 
     
-    public static void changeState()
-   	{
-    	
-    	
-   		//TextView tv = (TextView)findViewById(R.id.tv_header);
-   		//tv.setText( "Cycle "+cycle);
-   		if(alarmRunning)
-   		{
-   			
-   			if(alarmPaused==false)
-   			{
-		    	elapsed++;
-		   
-		   		if(isDisplayed)
-		   		{  			
-		   			alarmActivity.tvStatus.setText("Alarm running. Cycle : "+ ReminderService.cycle);
-			   		alarmActivity.tvRemaining.setGravity(Gravity.CENTER);
-			   	
-			   		alarmActivity.tvRemaining.setText(" "+(totalSeconds-elapsed) + " second(s) to next alarm");
-			       	
-			   		progress = elapsed*100/totalSeconds;
-			   		alarmActivity.progressBar.setProgress(progress);
-		   		}
-   			}
-   			else
-   			{
-		   		if(isDisplayed)
-		   		{  			
-		   			alarmActivity.tvStatus.setText("Alarm paused. Cycle : "+ cycle);
-			   		alarmActivity.tvRemaining.setGravity(Gravity.CENTER);
-			   		alarmActivity.tvRemaining.setText(" "+(totalSeconds-elapsed) + " second(s) remaining for the next alarm");
-
-			   		progress = elapsed*100/totalSeconds;
-			   		alarmActivity.progressBar.setProgress(progress);
-		   		}
-   			}
-   		}
-   	}
-     
-	
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
 		// TODO Auto-generated method stub
-		alarmRunning=true;
-		
-		//if(isDisplayed)alarmActivity.updateUIItemState();
-		
-		currentIntervalNo=0;
-		cycle=0;
+		updateStateVariables_Stopped_to_Start();
+		//if(isDisplayed)alarmActivity.updateUIItemState();	
 		reschedule();
+		
+		if(isDisplayed)alarmActivity.updateUI_STOP_TO_START();
+		
+		
 		
 		return super.onStartCommand(intent, flags, startId);
 
@@ -372,9 +378,10 @@ public class ReminderService extends Service
 
 	public void stopAlarm()
 	{
-		alarmRunning=false;
+
+		updateStateVariables_Running_to_Stop();
 		if(isDisplayed)
-			alarmActivity.updateUIItemState();
+			alarmActivity.updateUI_running_to_stop();
 		if(myCountdownTimer!=null)
 			myCountdownTimer.cancel();
 		

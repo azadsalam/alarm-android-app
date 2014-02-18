@@ -21,6 +21,7 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
+import android.opengl.Visibility;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -87,7 +88,7 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
     /** Called when the activity is first created. */
 	
 	
-	
+	/*
 	void changeColorEditTextStart()
 	{
 		String text = 	prefs.getString(sequenceKey, null);;
@@ -137,13 +138,15 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 		}
 	} 
 	
-	
+	*/
 	void changeColorEditText()
 	{
-		String text = 	prefs.getString(sequenceKey, null);;
 
-		if(ReminderService.alarmRunning==false) 
-		{	
+		String text = 	prefs.getString(sequenceKey, null);
+
+
+		if(ReminderService.alarmRunning==false)
+		{
 			etSequence.setText(text);
 			return;
 		}
@@ -158,10 +161,12 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 		int count=0;
 		int countLimit = ReminderService.currentIntervalNo;
 		if(countLimit == 0) countLimit = ReminderService.sequence.size();
+		
+		
 		while(st.hasMoreTokens())
 		{
 			String token = st.nextToken();
-			Log.d("tokens",token);
+			//Log.d("tokens",token);
 			if(count< countLimit - 1)
 			{
 				if(count==0) part1 += token;
@@ -186,41 +191,32 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 		
 		try
 		{
-		 seq = new SpannableString( part1+part2+part3);
-		 Log.d("et text", seq.toString());
+			seq = new SpannableString( part1+part2+part3);
+			//Log.d("et text", seq.toString());
 		  
-		 seq.setSpan(new ForegroundColorSpan(Color.RED), part1.length(), part1.length()+part2.length(), 0);
+			seq.setSpan(new ForegroundColorSpan(Color.RED), part1.length(), part1.length()+part2.length(), 0);
 		
-		 etSequence.setText(seq,BufferType.SPANNABLE);
+		
+			//etSequence.setText("");
+			
+			etSequence.setText(seq,BufferType.SPANNABLE);
 		}
 		catch (Exception exception) {
 			// TODO: handle exception
-			Log.d("et text length", " "+ seq.length());
+			Log.d("ERROR ! et text length", " "+ seq.length());
 		}
 	} 
     
-    @Override
-    protected void onResume()
+	 @Override
+    public void onCreate(Bundle savedInstanceState) 
     {
-    	// TODO Auto-generated method stub
-    	super.onResume();
-    	ReminderService.isDisplayed=true;
-    	ReminderService.alarmActivity = this;
-    	
-    	//changeColorEditText();
-    }
-    
-    
-    @Override
-    protected void onPause()
-    {
-    	// TODO Auto-generated method stub
-    	super.onPause();
-    	ReminderService.isDisplayed=false;
-    	ReminderService.alarmActivity=null;
-    }
-    private void initUI()
-    {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.main);
+        
+       // ReminderService.initialiseStateVariables();
+
+       
+        
         etSequence = (EditText)findViewById(R.id.etSequence);
         btnStart = (Button)findViewById(R.id.btn_main);
         btnPause = (Button)findViewById(R.id.btn_pause);
@@ -232,31 +228,18 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
         progressBar = (ProgressBar)findViewById(R.id.progressBar);
         tvTop = (TextView)findViewById(R.id.tv_header);
         tvRemaining = (TextView)findViewById(R.id.tv_remaining);
-        
-    }
-    @Override
-    public void onCreate(Bundle savedInstanceState) 
-    {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.main);
-       
-        
-        initUI();
 
-        tvTop.setText("Interval sequence(Ex:1 2 3)");
-        tvRemaining.setText("");
-        tvRemaining.setGravity(Gravity.CENTER);
-        
-        
+
         btnStart.setOnClickListener(this);
         btnPause.setOnClickListener(this);
         btnDelete.setOnClickListener(this);
         
+    
         prefs = this.getSharedPreferences("azad.alarm.sharedPreferences", Context.MODE_PRIVATE);
         prefsEditor = prefs.edit();
         
 
-        tvStatus.setText("Alarm is currently stopped");
+//	        tvStatus.setText("Alarm is currently stopped");
         String initswqtext = prefs.getString(sequenceKey, null);
         
         if(initswqtext!=null)
@@ -286,9 +269,104 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
         
         ReminderService.selectedTune=map[initialToneIndex];
         
-               
-       updateUIItemState();
+         Log.d("ON CREATE","On CREATE");      
+     //  updateUIItemState();
        updateSequenceSpinner();
+    }
+    
+
+	
+    @Override
+    protected void onResume()
+    {
+    	// TODO Auto-generated method stub
+    	super.onResume();
+    	ReminderService.isDisplayed=true;
+    	ReminderService.alarmActivity = this;
+    	
+    	
+    	//changeColorEditText();
+    	
+    	//initUI();
+    	
+    /*	if(ReminderService.alarmRunning)
+    		Log.d("ON RESUME ", "Alarlm running " );
+    	else
+    		Log.d("ON RESUME ", "Alarlm not running " );
+    */	
+    	initialiseUIState();
+    	//changeColorEditText();
+    }
+    
+    
+    @Override
+    protected void onPause()
+    {
+    	// TODO Auto-generated method stub
+    	super.onPause();
+    	ReminderService.isDisplayed=false;
+    	ReminderService.alarmActivity=null;
+    }
+       
+    public void initialiseUIState()
+    {
+
+        tvTop.setText("Interval sequence(Ex:1 2 3)");
+        tvRemaining.setText("");
+        tvRemaining.setGravity(Gravity.CENTER);
+        
+        
+		if(ReminderService.alarmRunning == false) //not running
+		{
+			
+			
+			etSequence.setEnabled(true);
+			
+			String text = 	prefs.getString(sequenceKey, null);
+			etSequence.setText(text);
+			
+			sp_sequence_selector.setEnabled(true);
+			tvStatus.setText("Alarm is currently stopped");			
+			tvRemaining.setText("");
+			btnStart.setText(startText);
+			btnStart.setBackgroundResource(R.drawable.button_shape);
+			
+			btnDelete.setEnabled(true);
+			btnPause.setVisibility(View.GONE);
+			progressBar.setProgress(0);
+			
+		}
+		else
+		{
+			btnDelete.setEnabled(false);
+			etSequence.setEnabled(false);
+			sp_sequence_selector.setEnabled(false);
+			
+			
+			int progress = ReminderService.elapsed*100/ReminderService.totalSeconds;
+	   		progressBar.setProgress(progress);
+	   		
+	   		btnStart.setBackgroundResource(R.drawable.button_shape_red);
+			btnStart.setText(stopText);
+			
+			tvRemaining.setText(" "+(ReminderService.totalSeconds-ReminderService.elapsed) + " second(s) to next alarm");
+			
+			if(ReminderService.alarmPaused == false) //not paused - running
+			{	
+				tvStatus.setText("Alarm running. Cycle : "+ ReminderService.cycle);
+				btnPause.setText("Pause");
+		   		
+			}
+			else
+			{
+				tvStatus.setText("Alarm paused. Cycle : "+ ReminderService.cycle);
+		   		btnPause.setText("RESUME");
+			}
+			
+			changeColorEditText();
+		}
+		
+
     }
     
     String[] sequences;
@@ -323,8 +401,9 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 			prefsEditor.putInt("SelectedSequenceIndex", index);
 			prefsEditor.commit();
 			
-			String text = prefs.getString("sequence"+index, "1 2 3");
-			etSequence.setText(text);
+			//String text = prefs.getString("sequence"+index, "1 2 3");
+			//etSequence.setText(text);
+			changeColorEditText();
 			
 		}
 
@@ -418,7 +497,7 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 				
 				startAlarm();
 				
-				changeColorEditTextStart();
+//				changeColorEditText();
 			}
 		
 			else 
@@ -445,7 +524,7 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 		
 		else if(v.getId()==R.id.btn_delete)
 		{
-			removeSequence(	);	
+			removeSequence();	
 		}
 //        timer.schedule(myTimerTask, nextDelay()*1000);
 	}
@@ -453,22 +532,21 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 	
 	public void pause()
 	{
-		
-		btnPause.setText("RESUME");
-		ReminderService.alarmService.pause();
-		
+		ReminderService.alarmService.pause();	
 	}
 	
 	public void resume()
 	{
-		btnPause.setText("Pause");
+		
 		ReminderService.alarmService.resume();
 		
 	}
 	
+	/*
 	public void updateUIItemState()
 	{
-		
+	
+
 		if(ReminderService.alarmRunning == false) //not running
 		{
 			etSequence.setEnabled(true);
@@ -507,38 +585,18 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 		}
 		changeColorEditText();
 	}
+	*/
+
 	public void startAlarm()
 	{
-		btnPause.setEnabled(true);
-		progressBar.setProgress(0);
-
-		etSequence.setEnabled(false);
-		
-		ReminderService.alarmPaused=false;
-		//ReminderService.alarmRunning =true;
 		startService(new Intent(ReminderActivity.this,ReminderService.class));
-		sp_sequence_selector.setEnabled(false);
-	
-		btnPause.setVisibility(View.VISIBLE);
-		
-		updateUIItemState();
-
 	}
 	
 	public void stopAlarm()
 	{
-		btnPause.setEnabled(false);
-		progressBar.setProgress(0);
-		ReminderService.alarmPaused=false; 
 
 		stopService(new Intent(ReminderActivity.this,ReminderService.class));
-		btnPause.setVisibility(View.GONE);
-		sp_sequence_selector.setEnabled(true);
-		btnDelete.setEnabled(false);
-		etSequence.setText(prefs.getString(sequenceKey, null));
 	}
-	
-	
 	
 	
    
@@ -586,5 +644,83 @@ public class ReminderActivity extends Activity implements OnClickListener,OnItem
 	   // popupWindow.showAsDropDown(btnOpenPopup, 50, -30);
 	    popupWindow.showAtLocation(popupView.getRootView(),Gravity.CENTER, 0, 0);
 
+	}
+
+
+	public void updateUI_RemainingSecondsInfo()
+	{
+   		tvRemaining.setText(" "+(ReminderService.totalSeconds-ReminderService.elapsed) + " second(s) to next alarm");
+       	
+//   		progress = elapsed*100/totalSeconds;
+   		progressBar.setProgress(ReminderService.progress);
+
+	}
+	
+	public void updateUI_Running_toPause()
+	{
+   		if(ReminderService.alarmRunning)
+   		{
+   			btnPause.setText("RESUME");
+			tvStatus.setText("Alarm paused. Cycle : "+ ReminderService.cycle);
+	
+   		}
+		
+	}
+
+	public void updateUI_pause_to_resume()
+	{
+		btnPause.setText("Pause");
+		tvStatus.setText("Alarm running. Cycle : "+ ReminderService.cycle);
+	}
+	
+	public void updateUI_STOP_TO_START()
+	{
+		btnDelete.setEnabled(false);
+		etSequence.setEnabled(false);
+		sp_sequence_selector.setEnabled(false);
+		
+		tvStatus.setText("Alarm running. Cycle : "+ ReminderService.cycle);		
+		tvRemaining.setText(" "+(ReminderService.totalSeconds-ReminderService.elapsed) + " second(s) to next alarm");
+		
+		btnStart.setBackgroundResource(R.drawable.button_shape_red);
+		btnStart.setText(stopText);
+		
+   		//int progress = ReminderService.elapsed*100/ReminderService.totalSeconds;
+   		progressBar.setProgress(0);
+   		
+   		btnPause.setEnabled(true);
+   		btnPause.setVisibility(View.VISIBLE);
+   		if(ReminderService.alarmPaused)
+   		{
+   			btnPause.setText("RESUME");
+   		}
+   		else
+   		{
+   			btnPause.setText("Pause");
+   		}
+		
+		changeColorEditText();
+	}
+
+	
+	public void updateUI_running_to_stop()
+	{
+		
+//
+		initialiseUIState();
+		/*btnDelete.setEnabled(true);
+		etSequence.setEnabled(true);
+		etSequence.setText(prefs.getString(sequenceKey, null));
+		sp_sequence_selector.setEnabled(true);
+		
+		tvStatus.setText("Alarm is currently stopped");			
+		tvRemaining.setText("");
+		btnStart.setText(startText);
+		btnStart.setBackgroundResource(R.drawable.button_shape);
+		
+		btnPause.setVisibility(View.GONE);
+		progressBar.setProgress(0);
+		
+		changeColorEditText();*/
 	}
 }
